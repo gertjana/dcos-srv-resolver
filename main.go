@@ -10,7 +10,8 @@ import (
 )
 
 type Response struct {
-	Service string     `json:"Service"`
+	Name    string
+	Service string
 	Srvs    []*net.SRV `json:"Targets"`
 }
 
@@ -25,8 +26,9 @@ func TrimSuffix(s, suffix string) string {
 	return s
 }
 
-func ToJson(service string, srvs []*net.SRV) string {
+func ToJson(name string, service string, srvs []*net.SRV) string {
 	response := &Response{
+		Name:    name,
 		Service: service,
 		Srvs:    srvs,
 	}
@@ -43,13 +45,13 @@ func lookup(w http.ResponseWriter, r *http.Request) {
 	service := mux.Vars(r)["service"]
 
 	w.Header().Set("Content-Type", "application/json")
-	if _, srvs, err := net.LookupSRV(service, "tcp", host); err != nil {
+	if cname, srvs, err := net.LookupSRV(service, "tcp", host); err != nil {
 		errorResponse, _ := json.Marshal(&ErrorResponse{
 			Error: err.Error(),
 		})
 		io.WriteString(w, string(errorResponse))
 	} else {
-		io.WriteString(w, ToJson(service, srvs))
+		io.WriteString(w, ToJson(cname, service, srvs))
 	}
 }
 
