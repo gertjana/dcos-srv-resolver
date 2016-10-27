@@ -1,35 +1,62 @@
 package main
 
 import (
-	"fmt"
-	"github.com/gorilla/mux"
-	"io"
-	"net"
-	"net/http"
-	"strings"
+  "encoding/json"
+  "fmt"
+  "github.com/gorilla/mux"
+  "io"
+  "net"
+  "net/http"
+  "strings"
 )
 
+type Response struct {
+  Service string     `json:"Service"`
+  Srvs    []*net.SRV `json:"Targets"`
+}
+
 func TrimSuffix(s, suffix string) string {
-	if strings.HasSuffix(s, suffix) {
-		s = s[:len(s)-len(suffix)]
-	}
-	return s
+  if strings.HasSuffix(s, suffix) {
+    s = s[:len(s)-len(suffix)]
+  }
+  return s
+}
+
+func ToJson(service string, srvs []*net.SRV) string {
+  response := &Response{
+    Service: service,
+    Srvs:    srvs,
+  }
+  jsonResponse, _ := json.Marshal(response)
+  return string(jsonResponse)
 }
 
 func lookup(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	service := vars["service"]
-	if _, srvs, err := net.LookupSRV(service, "tcp", "marathon.mesos"); err != nil {
-		io.WriteString(w, fmt.Sprintf("ERROR:%s", err))
-	} else {
-		io.WriteString(w, fmt.Sprintf("%s:%d", TrimSuffix(srvs[0].Target, "."), srvs[0].Port))
-	}
+  var host = "marathon.mesos."
+  if strings.HasPrefix(r.Host, "localhost") { // to locally test this i've added 2 srv records to my domain
+    host = "addictivesoftware.net."
+  }
+
+  service := mux.Vars(r)["service"]
+
+  if _, srvs, err := net.LookupSRV(service, "tcp", host); err != nil {
+    w.Header().Set("Content-Type", "text/plain")
+    io.WriteString(w, fmt.Sprintf("ERROR:%s", err))
+  } else {
+    w.Header().Set("Content-Type", "application/json")
+    io.WriteString(w, ToJson(service, srvs))
+  }
+}
+
+func status(w http.ResponseWriter, r *http.Request) {
+  io.WriteString(w, "OK")
 }
 
 func main() {
-	rtr := mux.NewRouter()
-	rtr.HandleFunc("/{service}", lookup).Methods("GET")
+  rtr := mux.NewRouter()
+  rtr.HandleFunc("/service/{service}", lookup).Methods("GET")
+  rtr.HandleFunc("/status", status).Methods("GET")
 
-	http.Handle("/", rtr)
-	http.ListenAndServe(":8000", nil)
+  http.Handle("/", rtr)
+  http.ListenAndServe(":8000", nil)
 }

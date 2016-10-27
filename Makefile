@@ -1,4 +1,4 @@
-docker-container = major7/dcos_sd
+docker-container = thenewmotion/yellowpages
 dist = dist/dcos_sd
 
 all: build-container
