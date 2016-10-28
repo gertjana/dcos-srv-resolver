@@ -4,40 +4,44 @@ import (
 	"encoding/json"
 	"github.com/gorilla/mux"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"strings"
 )
 
 type Response struct {
-	Name    string
-	Service string
-	Targets []Target
+	Name    string   `json:"name"`
+	Service string   `json:"service"`
+	Targets []Target `json:"targets"`
 }
 
 type Target struct {
-	Host     string
-	Ips      []net.IP
-	Port     uint16
-	Priority uint16
-	Weight   uint16
+	Host     string   `json:"host"`
+	Ips      []net.IP `json:"ips"`
+	Port     uint16   `json:"port"`
+	Priority uint16   `json:"priority"`
+	Weight   uint16   `json:"weight"`
 }
 
 type ErrorResponse struct {
-	Error string
+	Error string `json:"error"`
 }
 
-func TrimSuffix(s, suffix string) string {
+func trimSuffix(s, suffix string) string {
 	if strings.HasSuffix(s, suffix) {
 		s = s[:len(s)-len(suffix)]
 	}
 	return s
 }
 
-func CreateResponse(name string, service string, srvs []*net.SRV) string {
+func createResponse(name string, service string, srvs []*net.SRV) string {
 	targets := make([]Target, len(srvs), (cap(srvs)+1)*2)
 	for i := range srvs {
-		ips, _ := net.LookupIP(srvs[i].Target)
+		ips, err := net.LookupIP(srvs[i].Target)
+		if err != nil {
+			log.Println(err.Error())
+		}
 		targets[i] = Target{
 			Host:     srvs[i].Target,
 			Ips:      ips,
@@ -51,7 +55,10 @@ func CreateResponse(name string, service string, srvs []*net.SRV) string {
 		Service: service,
 		Targets: targets,
 	}
-	jsonResponse, _ := json.Marshal(response)
+	jsonResponse, err := json.Marshal(response)
+	if err != nil {
+		log.Println(err.Error())
+	}
 	return string(jsonResponse)
 }
 
@@ -59,8 +66,8 @@ func lookup(w http.ResponseWriter, r *http.Request) {
 	host := "marathon.mesos."
 	const protocol = "tcp"
 
-	// to locally test this i've added 2 srv records for _test._tcp to the addictive software domain
 	if strings.HasPrefix(r.Host, "localhost") {
+		log.Println("localhost detected, using test SRV records at addictivesoftware.net")
 		host = "addictivesoftware.net."
 	}
 
@@ -75,7 +82,7 @@ func lookup(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(404)
 		io.WriteString(w, string(errorResponse))
 	} else {
-		io.WriteString(w, CreateResponse(cname, service, srvs))
+		io.WriteString(w, createResponse(cname, service, srvs))
 	}
 }
 
