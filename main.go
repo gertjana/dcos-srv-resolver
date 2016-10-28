@@ -12,7 +12,15 @@ import (
 type Response struct {
 	Name    string
 	Service string
-	Srvs    []*net.SRV `json:"Targets"`
+	Targets []Target
+}
+
+type Target struct {
+	Host     string
+	Ips      []net.IP
+	Port     uint16
+	Priority uint16
+	Weight   uint16
 }
 
 type ErrorResponse struct {
@@ -26,11 +34,22 @@ func TrimSuffix(s, suffix string) string {
 	return s
 }
 
-func ToJson(name string, service string, srvs []*net.SRV) string {
+func CreateResponse(name string, service string, srvs []*net.SRV) string {
+	targets := make([]Target, len(srvs), (cap(srvs)+1)*2)
+	for i := range srvs {
+		ips, _ := net.LookupIP(srvs[i].Target)
+		targets[i] = Target{
+			Host:     srvs[i].Target,
+			Ips:      ips,
+			Port:     srvs[i].Port,
+			Priority: srvs[i].Priority,
+			Weight:   srvs[i].Weight,
+		}
+	}
 	response := &Response{
 		Name:    name,
 		Service: service,
-		Srvs:    srvs,
+		Targets: targets,
 	}
 	jsonResponse, _ := json.Marshal(response)
 	return string(jsonResponse)
@@ -38,23 +57,25 @@ func ToJson(name string, service string, srvs []*net.SRV) string {
 
 func lookup(w http.ResponseWriter, r *http.Request) {
 	host := "marathon.mesos."
-  protocol := "tcp"
+	const protocol = "tcp"
 
-  // to locally test this i've added 2 srv records for _test._tcp to the addictive software domain
-	if strings.HasPrefix(r.Host, "localhost") { 
+	// to locally test this i've added 2 srv records for _test._tcp to the addictive software domain
+	if strings.HasPrefix(r.Host, "localhost") {
 		host = "addictivesoftware.net."
 	}
 
 	service := mux.Vars(r)["service"]
 
 	w.Header().Set("Content-Type", "application/json")
+
 	if cname, srvs, err := net.LookupSRV(service, protocol, host); err != nil {
 		errorResponse, _ := json.Marshal(&ErrorResponse{
 			Error: err.Error(),
 		})
+		w.WriteHeader(404)
 		io.WriteString(w, string(errorResponse))
 	} else {
-		io.WriteString(w, ToJson(cname, service, srvs))
+		io.WriteString(w, CreateResponse(cname, service, srvs))
 	}
 }
 
