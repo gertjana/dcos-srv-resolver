@@ -37,15 +37,18 @@ func ToJson(name string, service string, srvs []*net.SRV) string {
 }
 
 func lookup(w http.ResponseWriter, r *http.Request) {
-	var host = "marathon.mesos."
-	if strings.HasPrefix(r.Host, "localhost") { // to locally test this i've added 2 srv records to my domain
+	host := "marathon.mesos."
+  protocol := "tcp"
+
+  // to locally test this i've added 2 srv records for _test._tcp to the addictive software domain
+	if strings.HasPrefix(r.Host, "localhost") { 
 		host = "addictivesoftware.net."
 	}
 
 	service := mux.Vars(r)["service"]
 
 	w.Header().Set("Content-Type", "application/json")
-	if cname, srvs, err := net.LookupSRV(service, "tcp", host); err != nil {
+	if cname, srvs, err := net.LookupSRV(service, protocol, host); err != nil {
 		errorResponse, _ := json.Marshal(&ErrorResponse{
 			Error: err.Error(),
 		})
