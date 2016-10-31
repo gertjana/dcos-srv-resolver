@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -35,7 +36,22 @@ func trimSuffix(s, suffix string) string {
 	return s
 }
 
-func createResponse(name string, service string, srvs []*net.SRV) string {
+func createShortResponse(name string, service string, srvs []*net.SRV) string {
+	targets := ""
+	for i := range srvs {
+		target := srvs[i].Target
+		port := srvs[i].Port
+		ips, _ := net.LookupIP(srvs[i].Target)
+		if len(ips) == 0 {
+			targets += target + ":" + strconv.Itoa(int(port)) + "\n"
+		} else {
+			targets += ips[0].String() + ":" + strconv.Itoa(int(port)) + "\n"
+		}
+	}
+	return targets
+}
+
+func createLongResponse(name string, service string, srvs []*net.SRV) string {
 	targets := make([]Target, len(srvs), (cap(srvs)+1)*2)
 	for i := range srvs {
 		ips, err := net.LookupIP(srvs[i].Target)
@@ -62,7 +78,15 @@ func createResponse(name string, service string, srvs []*net.SRV) string {
 	return string(jsonResponse)
 }
 
-func lookup(w http.ResponseWriter, r *http.Request) {
+func lookupShort(w http.ResponseWriter, r *http.Request) {
+	lookup(w, r, true)
+}
+
+func lookupLong(w http.ResponseWriter, r *http.Request) {
+	lookup(w, r, false)
+}
+
+func lookup(w http.ResponseWriter, r *http.Request, short bool) {
 	host := "marathon.mesos."
 	const protocol = "tcp"
 
@@ -73,16 +97,21 @@ func lookup(w http.ResponseWriter, r *http.Request) {
 
 	service := mux.Vars(r)["service"]
 
-	w.Header().Set("Content-Type", "application/json")
-
 	if cname, srvs, err := net.LookupSRV(service, protocol, host); err != nil {
 		errorResponse, _ := json.Marshal(&ErrorResponse{
 			Error: err.Error(),
 		})
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(404)
 		io.WriteString(w, string(errorResponse))
 	} else {
-		io.WriteString(w, createResponse(cname, service, srvs))
+		if short {
+			w.Header().Set("Content-Type", "application/json")
+			io.WriteString(w, createShortResponse(cname, service, srvs))
+		} else {
+			w.Header().Set("Content-Type", "text/plain")
+			io.WriteString(w, createLongResponse(cname, service, srvs))
+		}
 	}
 }
 
@@ -92,7 +121,8 @@ func status(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	rtr := mux.NewRouter()
-	rtr.HandleFunc("/service/{service}", lookup).Methods("GET")
+	rtr.HandleFunc("/service/{service}", lookupLong).Methods("GET")
+	rtr.HandleFunc("/short/{service}", lookupShort).Methods("GET")
 	rtr.HandleFunc("/status", status).Methods("GET")
 
 	http.Handle("/", rtr)

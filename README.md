@@ -8,7 +8,9 @@ Deploy the image into your mesos/marathon environment for instance by using the 
 
 # usage
 
-goto `http://service.domain/service/{name of service}`
+goto `http://service.domain/service/{name of service}` for a full json response
+
+goto `http://service.domain/short/{name of service}` for a list of `ip-adress:port` text response
 
 you should see your service and on which host/port it's instances are located
 
