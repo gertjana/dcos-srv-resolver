@@ -106,10 +106,10 @@ func lookup(w http.ResponseWriter, r *http.Request, short bool) {
 		io.WriteString(w, string(errorResponse))
 	} else {
 		if short {
-			w.Header().Set("Content-Type", "application/json")
+      w.Header().Set("Content-Type", "text/plain")
 			io.WriteString(w, createShortResponse(cname, service, srvs))
 		} else {
-			w.Header().Set("Content-Type", "text/plain")
+      w.Header().Set("Content-Type", "application/json")
 			io.WriteString(w, createLongResponse(cname, service, srvs))
 		}
 	}
