@@ -2,11 +2,11 @@ FROM scratch
 
 EXPOSE 8000
 
-COPY dist/dcos_sd /dcos_sd
+COPY dist/yp /yp
 COPY dist/cmx /cmx
 COPY dumb-init /dumb-init
 
 RUN ["/cmx"]
 
 ENTRYPOINT ["/dumb-init", "--"]
-CMD ["/dcos_sd"]
+CMD ["/yp"]
