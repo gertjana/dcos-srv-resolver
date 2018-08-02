@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/gorilla/mux"
 	"io"
 	"log"
@@ -115,6 +116,13 @@ func lookup(w http.ResponseWriter, r *http.Request, short bool) {
 	}
 }
 
+func headers(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain")
+	for k, v := range r.Header {
+		io.WriteString(w, fmt.Sprintf("Header field %q, Value %q\n", k, v))
+	}
+}
+
 func status(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, "OK")
 }
@@ -124,6 +132,7 @@ func main() {
 	rtr.HandleFunc("/service/{service}", lookupLong).Methods("GET")
 	rtr.HandleFunc("/short/{service}", lookupShort).Methods("GET")
 	rtr.HandleFunc("/status", status).Methods("GET")
+	rtr.HandleFunc("/headers", headers).Methods("GET")
 
 	http.Handle("/", rtr)
 	http.ListenAndServe(":8000", nil)
