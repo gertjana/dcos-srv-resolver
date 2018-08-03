@@ -127,12 +127,35 @@ func status(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, "OK")
 }
 
+func info(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html")
+	io.WriteString(w, `
+		<!DOCTYPE html>
+		<html lang="en">
+		  <head></head>
+		  <body>
+		  	<h1>Yellow Pages</h1>
+		  	<p>Find out information about the environment this app is running in</p>
+		  	<ul>
+		  		<li><a href="/">This Page</a></li>
+		  		<li><a href="/headers">Http Headers</a></li>
+		  		<li><a href="/service/yellowpages">DNS SRV records for the names application</a></li>
+		  		<li><a href="/short/yellowpages">DNS SRV Records ip:port only</a></li>
+		  		<li><a href="/status">Healthcheck</a></li>
+		  	</ul>
+		  	<p> Source: <a href="https://github.com/gertjana/dcos-srv-resolver">https://github.com/gertjana/dcos-srv-resolver</a>
+		  </body>
+
+		</html>`)
+}
+
 func main() {
 	rtr := mux.NewRouter()
 	rtr.HandleFunc("/service/{service}", lookupLong).Methods("GET")
 	rtr.HandleFunc("/short/{service}", lookupShort).Methods("GET")
 	rtr.HandleFunc("/status", status).Methods("GET")
 	rtr.HandleFunc("/headers", headers).Methods("GET")
+	rtr.HandleFunc("/", info).Methods("GET")
 
 	http.Handle("/", rtr)
 	http.ListenAndServe(":8000", nil)
