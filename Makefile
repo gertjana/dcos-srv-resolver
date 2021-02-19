@@ -11,7 +11,7 @@ build-app:
 build-container:
 	@go fmt *.go
 	@GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o $(dist_yp) main.go
-	@GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o $(dist_cmx) cmx.go
+	@GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o $(dist_cmx) cmx/cmx.go
 	@docker build -t $(docker-container) .
 
 dev:
